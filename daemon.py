@@ -1,10 +1,10 @@
+from aiohttp import ClientSession 
+from asyncio import run as arun
 
 from tortoise import Tortoise
 from models import Transit, Graphs
 from datetime import datetime
 from pytz import timezone
-import asyncio
-from aiohttp import ClientSession 
 from time import sleep
 
 
@@ -47,8 +47,6 @@ class Iseek:
     async def logout(self):
         await self.Session.post(Iseek.URL+Iseek.LOGOUT)
 
-    def FindgraphID(self, graphID):
-        print(self.Graphs)
 
     def ParseData(self, DATA_DUMP, timeThreshold=0):
         Parsed_Data = []
@@ -87,21 +85,20 @@ class Iseek:
             sleep(5*60)
             
 
-    async def AddGraph(instance, Graphs="./GraphID"):
+    async def AddGraph(instance, Graphs):
         async with instance as iseek:
-            if type(Graphs) == str:
-                with open(Graphs) as f:
-                    Graphs = [i.strip() for i in f.readlines()]
             for graphID in Graphs:
                 await iseek.UpdateGraph(graphID)
 
         
 if __name__ == "__main__":
+    print("Giving database some time to start")
+    sleep(30) 
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
     Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['databaseURL'])
-    asyncio.run(Iseek.AddGraph(Object))
-    asyncio.run(Iseek.start(Object))
+    arun(Iseek.AddGraph(Object, cfg['graphs']))
+    arun(Iseek.start(Object))
 
 

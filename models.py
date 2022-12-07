@@ -1,13 +1,14 @@
 from tortoise import fields
 from tortoise.models import Model
 
-class GraphStats(Model):
-    ID = fields.UUIDField(pk=True)
+
 
 class Graphs(Model):
     ID = fields.IntField(pk=True)
     Title = fields.TextField()
+    Location = fields.TextField()
     relation: fields.ReverseRelation["Transit"]
+
 
 class Transit(Model):
     ID = fields.UUIDField(pk=True)
