@@ -1,8 +1,5 @@
 from aiohttp import ClientSession 
 from asyncio import run as arun
-
-from tortoise import Tortoise
-from models import Transit, Graphs
 from datetime import datetime
 from pytz import timezone
 from time import sleep
@@ -15,20 +12,14 @@ class Iseek:
     LOGOUT = "logout.php"
 
 
-    def __init__(self, username, password, realm, databaseURL) -> None:
-        self.databaseURL = databaseURL
+    def __init__(self, username, password, realm, graphs=[]) -> None:
         self.username = username
         self.password = password
         self.realm = realm
+        self.graphs = graphs
 
     async def __aenter__(self):
         self.Session = await ClientSession().__aenter__()
-        await Tortoise.init(
-            db_url=self.databaseURL,
-            modules={"models": ["models"]}
-        )
-        # Generate the schema
-        await Tortoise.generate_schemas()
         await self.login()
         return self
 
@@ -48,7 +39,7 @@ class Iseek:
         await self.Session.post(Iseek.URL+Iseek.LOGOUT)
 
 
-    def ParseData(self, DATA_DUMP, timeThreshold=0):
+    def ParseData(DATA_DUMP, timeThreshold=0):
         Parsed_Data = []
         for data in DATA_DUMP:
             data = data.replace('"', '').split(",")
@@ -57,24 +48,18 @@ class Iseek:
                 Parsed_Data.append((time, float(data[1]), float(data[2])))
         return Parsed_Data
     
-    async def UpdateGraph(self, graphID):
+    
+    async def getData(self, graphID):
         var = f"?local_graph_id={graphID}&rra_id=5&view_type=tree"
         async with self.Session.post(Iseek.URL+Iseek.ACTION+var) as responce:
             DATA_DUMP = await responce.text()
             DATA_DUMP = DATA_DUMP.split("\n")
-            __, IsCreated = await Graphs.get_or_create(ID=graphID, Title =DATA_DUMP[0].replace('"', '').split(",")[1])
-            if (IsCreated):
-                Data = self.ParseData(DATA_DUMP[10:-1])
-            else:
-                lastRow = await Transit.filter(graph_id = graphID).order_by("-DateTime").first().values()
-                Data = self.ParseData(DATA_DUMP[10:-1], lastRow['DateTime'])
-        for data in Data:
-            await Transit.create(graph_id=graphID, DateTime=data[0], Outbound=float(data[1]), InBound= float(data[2]))
+        return (DATA_DUMP[0].replace('"', '').split(",")[1], DATA_DUMP[10:-1])
+
     
     async def __aexit__(self,exc_type, exc_value, traceback):
         await self.logout()
         await self.Session.__aexit__(exc_type, exc_value, traceback)
-        await Tortoise.close_connections()
     
     async def start(instance):
         while True:
@@ -97,7 +82,7 @@ if __name__ == "__main__":
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['databaseURL'])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'])
     arun(Iseek.AddGraph(Object, cfg['graphs']))
     arun(Iseek.start(Object))
 
