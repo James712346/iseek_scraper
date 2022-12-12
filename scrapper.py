@@ -65,22 +65,39 @@ class Iseek:
         """
         Parsed_Data = []
         for data in DATA_DUMP:
-            data = data.replace('"', '').split(",")
-            time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(data[0],"%Y-%m-%d %H:%M:%S"))))
-            if timeThreshold < time:
-                Parsed_Data.append((time, float(data[1]), float(data[2])))
+            row = Iseek.ParseRow(data)
+            if timeThreshold < row[0]:
+                Parsed_Data.append(row)
         return Parsed_Data
-    
-    async def getAllData(self, parseData=False) -> list[dict]:
+
+    def ParseRow(Raw_Row):
+        Raw_Row = Raw_Row.replace('"', '').split(",")
+        time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
+        return (time, float(Raw_Row[1]), float(Raw_Row[2]))
+
+    async def getAllData(self, CustomParser=None, flatten=False) -> list[dict]:
         """_summary_
 
         Args:
             parseData (bool, optional): _description_. Defaults to False.
+            CustomParser (function, optional): Accept a dictornary that contains; graphID, title, unit, rawData, and any other attributes set in config.yaml. Defaults to None.
+            flatten (bool, optional): if CustomParser returns a list, it can be unpacked into the returning list. Defaults to False
 
         Returns:
-            list[dict]: _description_
+            list[dict]: Returns dictionary with  graphID, title, unit, rawData, and any other attributes set in config.yaml
         """
-        return 
+        AllData = []
+        for graph in self.graphs:
+            data = {**(await self.getData(graph, type(CustomParser) == type(None))), **self.graphs[graph]}
+            if not type(CustomParser) == type(None):
+                data = CustomParser(data)
+                if flatten:
+                    AllData.extend(data)
+                else:
+                    AllData.append(data)
+                    
+            else: AllData.append(data)
+        return AllData
     
     async def getData(self, graphID:int, parseData=False) -> dict:
         """Gets data for a given graphID from https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree
@@ -101,10 +118,10 @@ class Iseek:
             data = Iseek.ParseData(data) # Sends to the Parser
 
         return {
-                    "GraphID": graphID,
-                    "Title": DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1], 
-                    "Unit":DATA_DUMP[1].replace('"', '').replace("'", '').split(",")[1],
-                    "Data": data
+                    "graphid": graphID,
+                    "title": DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1], 
+                    "unit":DATA_DUMP[1].replace('"', '').replace("'", '').split(",")[1],
+                    "data": data
                 } # Returns the data
 
     
@@ -121,13 +138,12 @@ class Iseek:
 if __name__ == "__main__": 
     async def start(instance):
         async with instance as iseek:
-            print(await iseek.getData())  
+            print(await iseek.getAllData())  
 
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
     Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'])
-    print(cfg['graphs'])
     arun(start(Object))
 
 

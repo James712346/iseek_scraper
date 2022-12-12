@@ -5,14 +5,4 @@ services:
     build: .
     volumes:
       - ./config.yaml:/usr/src/app/config.yaml:rw
-  iseekdatabase:
-    hostname: db
-    image: mysql:latest
-    volumes:
-      - ./database:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=2SG_MYsql
-      - MYSQL_DATABASE=iseek
-    ports:
-      - 3306:3306
     
