@@ -15,9 +15,14 @@ class InfluxClient:
         write_api.write(self._bucket, self._org , data,write_precision='s')
     
     async def start(self, instance):
-        async with instance:
-            data = await instance.getAllData(self.InfluxDataParse, True)
-            self.write_data(data,write_option=ASYNCHRONOUS)
+        from time import sleep
+        while True:
+            async with instance:
+                data = await instance.getAllData(self.InfluxDataParse, True)
+                self.write_data(data,write_option=ASYNCHRONOUS)
+            print("Data Updated")
+            sleep(60*5)
+            
 
     def GetLastTimestamp(self, graphID):
         query = f'from(bucket: "{self._bucket}")\
