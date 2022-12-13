@@ -1,8 +1,0 @@
-version: '3'
-
-services:
-  iseekscraper:
-    build: .
-    volumes:
-      - ./config.yaml:/usr/src/app/config.yaml:rw
-    

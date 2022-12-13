@@ -20,7 +20,7 @@ class InfluxClient:
             async with instance:
                 data = await instance.getAllData(self.InfluxDataParse, True)
                 self.write_data(data,write_option=ASYNCHRONOUS)
-            print("Data Updated")
+            print("data")
             sleep(60*5)
             
 

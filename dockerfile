@@ -5,4 +5,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY scrapper.py .
 COPY InfluxDB.py .
 
-CMD [ "python", "./InfluxDB.py" ]
+CMD [ "python", "-u", "./InfluxDB.py" ]

@@ -88,7 +88,7 @@ class Iseek:
         """
         AllData = []
         for graph in self.graphs:
-            data = {**(await self.getData(graph, type(CustomParser) == type(None))), **self.graphs[graph]}
+            data = await self.getData(graph, CustomParser == None)
             if not type(CustomParser) == type(None):
                 data = CustomParser(data)
                 if flatten:
@@ -98,7 +98,25 @@ class Iseek:
                     
             else: AllData.append(data)
         return AllData
-    
+
+    def titleParse(title):
+        states = {"ldr": "QLD", "gh": "NSW", "ls": "Vic", "md":"WA"}
+        title = title.split(" - ")
+        dataParsed = {}
+        poiInfo = title[0].split("-")
+        dataParsed["state"] = states[poiInfo[0]]
+        dataParsed["POI_type"] = poiInfo[1]
+        if 'swcore' in title[0]:
+            dataParsed["POI_Name"] = " - ".join(title[1:])
+        elif 'swc' in title[0]:
+            dataParsed["POI_Name"] = " - ".join(title[1:])
+        else:
+            dataParsed["CSA"] = title[1].split(' ')[-1]
+            dataParsed["NBN_CSV"] = title[2]
+            dataParsed["VLink_Circuit_ID"] = title[3]
+            dataParsed["POI_Name"] = " - ".join(title[4:])
+        return dataParsed
+
     async def getData(self, graphID:int, parseData=False) -> dict:
         """Gets data for a given graphID from https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree
 
@@ -116,12 +134,12 @@ class Iseek:
         data = DATA_DUMP[10:-1] # Index slice off the graph properties and headings, to be left with pure data
         if parseData: # Check if parsing is needs to be done 
             data = Iseek.ParseData(data) # Sends to the Parser
-
+        
         return {
                     "graphid": graphID,
-                    "title": DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1], 
                     "unit":DATA_DUMP[1].replace('"', '').replace("'", '').split(",")[1],
-                    "data": data
+                    "data": data,
+                    **Iseek.titleParse(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
                 } # Returns the data
 
     
