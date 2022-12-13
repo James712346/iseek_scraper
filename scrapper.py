@@ -76,7 +76,7 @@ class Iseek:
         time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
         return (time, float(Raw_Row[1]), float(Raw_Row[2]))
 
-    async def getAllData(self, CustomParser=None, flatten=False) -> list[dict]:
+    async def getAllData(self, CustomParser=None, flatten=False, bandwidth=None) -> list[dict]:
         """_summary_
 
         Args:
@@ -88,8 +88,18 @@ class Iseek:
             list[dict]: Returns dictionary with  graphID, title, unit, rawData, and any other attributes set in config.yaml
         """
         AllData = []
+        if bandwidth:
+            CSA_to_bandwidth = {}
+            import csv
+            with open(bandwidth, newline='') as r:
+                for row in csv.DictReader(r):
+                    CSA_to_bandwidth[row["CSA"]] = row["Bandwidth (Mbps)"]
+                
         for graph in self.graphs:
             data = await self.getData(graph, CustomParser == None)
+            if bandwidth:
+                if "CSA" in data:
+                    data["bandwidth"] = CSA_to_bandwidth[data["CSA"]]
             if not type(CustomParser) == type(None):
                 data = CustomParser(data)
                 if flatten:
@@ -102,16 +112,18 @@ class Iseek:
 
     def titleParse(title):
         dataParsed = {"rawTitle": title}
+        POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
+        states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
         core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[A-Za-z -]+([0-9])([A-Za-z]{3})"
         coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
         swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*([0-9])([A-Za-z]{3})"
         swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)"
+        
         if "swcore" in title:
-            states = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
             results = re.search(swcore_regex, title)
-            dataParsed["group"] = results.group(1)
-            dataParsed["state"] = states[results.group(1)]
-            dataParsed["server"] = results.group(2)
+            dataParsed["POI_state"] = POIstates[results.group(1)]
+            dataParsed["POI_server"] = results.group(2)
+            dataParsed["state"] = POIstates[results.group(1)]
             dataParsed["channel"] = results.group(3)
         elif "core" in title:
             results = re.search(core_regex, title)
@@ -122,17 +134,16 @@ class Iseek:
                 states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
                 dataParsed["state"] = states[int(results.group(7))]
                 dataParsed["POI Code"] = results.group(7) + results.group(8)
-            dataParsed["group"] = results.group(1)
-            dataParsed["server"] = results.group(2)
-            dataParsed["connection"] = results.group(3)
+            dataParsed["POI_state"] = POIstates[results.group(1)]
+            dataParsed["POI_server"] = results.group(2)
+            #dataParsed["connection"] = results.group(3)
             dataParsed["CSA"] = results.group(4)
             dataParsed["NBN_CVC"] = results.group(5)
             dataParsed["VLink_Circuit_ID"] = results.group(6)
         elif "swc" in title:
             results = re.search(swc_regex, title)
-            states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-            dataParsed["group"] = results.group(1)
-            dataParsed["server"] = results.group(2)
+            dataParsed["POI_state"] = POIstates[results.group(1)]
+            dataParsed["POI_server"] = results.group(2)
             dataParsed["state"] = states[int(results.group(3))]
             dataParsed["POI Code"] = results.group(3) + results.group(4)
         return dataParsed
@@ -176,7 +187,7 @@ class Iseek:
 if __name__ == "__main__": 
     async def start(instance):
         async with instance as iseek:
-            await iseek.getAllData()
+            await iseek.getAllData(bandwidth="./bandwidth.csv")
 
     import yaml
     with open("config.yaml", "r") as ymlfile:
