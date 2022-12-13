@@ -65,10 +65,14 @@ class Iseek:
             list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
         """
         Parsed_Data = []
+        previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2]
         for data in DATA_DUMP:
             row = Iseek.ParseRow(data)
+            outboundRoC = (row[2]-previousOutbound) / (60*5) 
+            row = row + tuple([outboundRoC])
             if timeThreshold < row[0]:
                 Parsed_Data.append(row)
+            previousOutbound = row[2]
         return Parsed_Data
 
     def ParseRow(Raw_Row):
@@ -187,7 +191,7 @@ class Iseek:
 if __name__ == "__main__": 
     async def start(instance):
         async with instance as iseek:
-            await iseek.getAllData(bandwidth="./bandwidth.csv")
+            print(await iseek.getAllData(bandwidth="./bandwidth.csv"))
 
     import yaml
     with open("config.yaml", "r") as ymlfile:

@@ -43,12 +43,12 @@ class InfluxClient:
         tags = dataSet.copy()
         del tags["data"], tags["unit"]
         for data in dataSet["data"]:
-            time, inbound, outbound = Iseek.ParseRow(data)
+            time, inbound, outbound, outboundRoC = Iseek.ParseRow(data)
             if timeThreshold < time:
                 influxArray.append({
                     "measurement": dataSet["unit"],
                     "tags": tags,
-                    "fields": {"inbound": inbound,"outbound": outbound},
+                    "fields": {"inbound": inbound,"outbound": outbound, "outboundRoC": outboundRoC },
                     "time": time
                 })
         return influxArray
