@@ -101,7 +101,6 @@ class Iseek:
         return AllData
 
     def titleParse(title):
-        print(title)
         dataParsed = {"rawTitle": title}
         core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[A-Za-z -]+([0-9])([A-Za-z]{3})"
         coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
@@ -136,8 +135,6 @@ class Iseek:
             dataParsed["server"] = results.group(2)
             dataParsed["state"] = states[int(results.group(3))]
             dataParsed["POI Code"] = results.group(3) + results.group(4)
-            
-        print(dataParsed)
         return dataParsed
 
     async def getData(self, graphID:int, parseData=False) -> dict:
