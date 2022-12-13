@@ -18,7 +18,7 @@ class InfluxClient:
         from time import sleep
         while True:
             async with instance:
-                data = await instance.getAllData(self.InfluxDataParse, True)
+                data = await instance.getAllData(self.InfluxDataParse, True, bandwidth="./bandwidth.csv")
                 self.write_data(data,write_option=ASYNCHRONOUS)
             print("data")
             sleep(60*5)
