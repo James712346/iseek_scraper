@@ -3,6 +3,7 @@ from asyncio import run as arun
 from datetime import datetime
 from pytz import timezone
 from time import sleep
+import re 
 
 
 class Iseek:
@@ -100,21 +101,43 @@ class Iseek:
         return AllData
 
     def titleParse(title):
-        states = {"ldr": "QLD", "gh": "NSW", "ls": "Vic", "md":"WA"}
-        title = title.split(" - ")
-        dataParsed = {}
-        poiInfo = title[0].split("-")
-        dataParsed["state"] = states[poiInfo[0]]
-        dataParsed["POI_type"] = poiInfo[1]
-        if 'swcore' in title[0]:
-            dataParsed["POI_Name"] = " - ".join(title[1:])
-        elif 'swc' in title[0]:
-            dataParsed["POI_Name"] = " - ".join(title[1:])
-        else:
-            dataParsed["CSA"] = title[1].split(' ')[-1]
-            dataParsed["NBN_CSV"] = title[2]
-            dataParsed["VLink_Circuit_ID"] = title[3]
-            dataParsed["POI_Name"] = " - ".join(title[4:])
+        print(title)
+        dataParsed = {"rawTitle": title}
+        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[A-Za-z -]+([0-9])([A-Za-z]{3})"
+        coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
+        swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*([0-9])([A-Za-z]{3})"
+        swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)"
+        if "swcore" in title:
+            states = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
+            results = re.search(swcore_regex, title)
+            dataParsed["group"] = results.group(1)
+            dataParsed["state"] = states[results.group(1)]
+            dataParsed["server"] = results.group(2)
+            dataParsed["channel"] = results.group(3)
+        elif "core" in title:
+            results = re.search(core_regex, title)
+            if not results: 
+                results = re.search(coreBackup_regex, title)
+                dataParsed["POI Code"] = results.group(7)
+            else:
+                states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
+                dataParsed["state"] = states[int(results.group(7))]
+                dataParsed["POI Code"] = results.group(7) + results.group(8)
+            dataParsed["group"] = results.group(1)
+            dataParsed["server"] = results.group(2)
+            dataParsed["connection"] = results.group(3)
+            dataParsed["CSA"] = results.group(4)
+            dataParsed["NBN_CVC"] = results.group(5)
+            dataParsed["VLink_Circuit_ID"] = results.group(6)
+        elif "swc" in title:
+            results = re.search(swc_regex, title)
+            states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
+            dataParsed["group"] = results.group(1)
+            dataParsed["server"] = results.group(2)
+            dataParsed["state"] = states[int(results.group(3))]
+            dataParsed["POI Code"] = results.group(3) + results.group(4)
+            
+        print(dataParsed)
         return dataParsed
 
     async def getData(self, graphID:int, parseData=False) -> dict:
@@ -156,7 +179,7 @@ class Iseek:
 if __name__ == "__main__": 
     async def start(instance):
         async with instance as iseek:
-            print(await iseek.getAllData())  
+            await iseek.getAllData()
 
     import yaml
     with open("config.yaml", "r") as ymlfile:
