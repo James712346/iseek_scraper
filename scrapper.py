@@ -104,7 +104,7 @@ class Iseek:
             if bandwidth:
                 if "NBN_CVC" in data:
                     if data["NBN_CVC"] in CSA_to_bandwidth:
-                        data["bandwidth"] = CSA_to_bandwidth[data["NBN_CVC"]]
+                        data["max_bandwidth"] = CSA_to_bandwidth[data["NBN_CVC"]]
             if not type(CustomParser) == type(None):
                 data = CustomParser(data)
                 if flatten:
