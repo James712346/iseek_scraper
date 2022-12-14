@@ -65,14 +65,14 @@ class Iseek:
             list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
         """
         Parsed_Data = []
-        previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2]
+        previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2] + Iseek.ParseRow(DATA_DUMP[0])[1]
         for data in DATA_DUMP:
             row = Iseek.ParseRow(data)
             if timeThreshold < row[0]:
                 BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
-                row = row + tuple([BandwidthRoC])
+                row = row + tuple([row[1]+row[2], BandwidthRoC])
                 Parsed_Data.append(row)
-            previousOutbound = row[1] + row[2]
+            previousOutbound = row[3]
         return Parsed_Data
 
     def ParseRow(Raw_Row):

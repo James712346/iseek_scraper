@@ -42,18 +42,24 @@ class InfluxClient:
         timeThreshold = self.GetLastTimestamp(dataSet["graphid"])
         tags = dataSet.copy()
         del tags["data"], tags["unit"]
-        previousOutbound = Iseek.ParseRow(dataSet["data"][0])[2]
+        previousOutbound = sum(Iseek.ParseRow(dataSet["data"][0])[1:3])
         for data in dataSet["data"]:
             time, inbound, outbound = Iseek.ParseRow(data)
-            outboundRoC = (outbound-previousOutbound) / (60*5) 
+            bandwidthRoC = ((inbound+outbound)-previousOutbound) / (60*5) 
             if timeThreshold < time:
                 influxArray.append({
                     "measurement": dataSet["unit"],
                     "tags": tags,
-                    "fields": {"inbound": inbound,"outbound": outbound, "bandwidthRoC": outboundRoC },
+                    "fields": {"inbound": inbound,"outbound": outbound, "bandwidth": (inbound+outbound) },
                     "time": time
                 })
-            previousOutbound = outbound
+                influxArray.append({
+                    "measurement": "bits/s^2",
+                    "tags": tags,
+                    "fields": {"bandwidthRoC": bandwidthRoC },
+                    "time": time
+                })
+            previousOutbound = (inbound+outbound)
         return influxArray
             
             
