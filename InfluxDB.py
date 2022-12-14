@@ -50,7 +50,7 @@ class InfluxClient:
                 influxArray.append({
                     "measurement": dataSet["unit"],
                     "tags": tags,
-                    "fields": {"inbound": inbound,"outbound": outbound, "outboundRoC": outboundRoC },
+                    "fields": {"inbound": inbound,"outbound": outbound, "bandwidthRoC": outboundRoC },
                     "time": time
                 })
             previousOutbound = outbound

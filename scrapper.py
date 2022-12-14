@@ -68,11 +68,11 @@ class Iseek:
         previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2]
         for data in DATA_DUMP:
             row = Iseek.ParseRow(data)
-            outboundRoC = (row[2]-previousOutbound) / (60*5) 
-            row = row + tuple([outboundRoC])
             if timeThreshold < row[0]:
+                BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
+                row = row + tuple([BandwidthRoC])
                 Parsed_Data.append(row)
-            previousOutbound = row[2]
+            previousOutbound = row[1] + row[2]
         return Parsed_Data
 
     def ParseRow(Raw_Row):
@@ -97,13 +97,14 @@ class Iseek:
             import csv
             with open(bandwidth, newline='') as r:
                 for row in csv.DictReader(r):
-                    CSA_to_bandwidth[row["CSA"]] = row["Bandwidth (Mbps)"]
+                    CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
                 
         for graph in self.graphs:
             data = await self.getData(graph, CustomParser == None)
             if bandwidth:
-                if "CSA" in data:
-                    data["bandwidth"] = CSA_to_bandwidth[data["CSA"]]
+                if "NBN_CVC" in data:
+                    if data["NBN_CVC"] in CSA_to_bandwidth:
+                        data["bandwidth"] = CSA_to_bandwidth[data["NBN_CVC"]]
             if not type(CustomParser) == type(None):
                 data = CustomParser(data)
                 if flatten:
@@ -115,44 +116,57 @@ class Iseek:
         return AllData
 
     def titleParse(title):
-        dataParsed = {"rawTitle": title}
+        print(title)
+        dataParsed = {"rawTitle":title }
         POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
         states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[A-Za-z -]+([0-9])([A-Za-z]{3})"
+        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)([0-9])([A-Za-z]{3})[ -]+(.*)"
         coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
+        corelimited_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*)[ -]+()(CVC[0-9]+)[ -]+()(.*)"
         swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*([0-9])([A-Za-z]{3})"
-        swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)"
+        swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)(?>.+ ([0-9])([A-Z]{3})|).* ([A-Z][a-z]+|VLINK)"
         
         if "swcore" in title:
             results = re.search(swcore_regex, title)
             dataParsed["POI_state"] = POIstates[results.group(1)]
             dataParsed["POI_server"] = results.group(2)
-            dataParsed["state"] = POIstates[results.group(1)]
             dataParsed["channel"] = results.group(3)
+            dataParsed["state"] = POIstates[results.group(1)]
+            dataParsed["location"] = results.group(6)
+            if (results.group(4)):
+                dataParsed["state"] =states[int(results.group(4))] 
+                dataParsed["POI_code"] = results.group(4) + results.group(5)
+            
         elif "core" in title:
             results = re.search(core_regex, title)
             if not results: 
                 results = re.search(coreBackup_regex, title)
-                dataParsed["POI Code"] = results.group(7)
+                if (not results):
+                    results = re.search(corelimited_regex, title)
+                dataParsed["location"] = results.group(7)
             else:
                 states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-                dataParsed["state"] = states[int(results.group(7))]
-                dataParsed["POI Code"] = results.group(7) + results.group(8)
+                dataParsed["state"] = states[int(results.group(8))]
+                dataParsed["POI_code"] = results.group(8) + results.group(9)
+                dataParsed["location"] = results.group(10)
+                if (results.group(7)):
+                    dataParsed["location"] = results.group(7) + dataParsed["location"]
+
             dataParsed["POI_state"] = POIstates[results.group(1)]
             dataParsed["POI_server"] = results.group(2)
+            dataParsed["NBN_CVC"] = results.group(5)
             #dataParsed["connection"] = results.group(3)
             dataParsed["CSA"] = results.group(4)
-            dataParsed["NBN_CVC"] = results.group(5)
             dataParsed["VLink_Circuit_ID"] = results.group(6)
         elif "swc" in title:
             results = re.search(swc_regex, title)
             dataParsed["POI_state"] = POIstates[results.group(1)]
             dataParsed["POI_server"] = results.group(2)
             dataParsed["state"] = states[int(results.group(3))]
-            dataParsed["POI Code"] = results.group(3) + results.group(4)
+            dataParsed["POI_code"] = results.group(3) + results.group(4)
         return dataParsed
 
-    async def getData(self, graphID:int, parseData=False) -> dict:
+    async def getData(self, graphID:int, parseData=False, parseTitles=True) -> dict:
         """Gets data for a given graphID from https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree
 
         Args:
@@ -169,12 +183,14 @@ class Iseek:
         data = DATA_DUMP[10:-1] # Index slice off the graph properties and headings, to be left with pure data
         if parseData: # Check if parsing is needs to be done 
             data = Iseek.ParseData(data) # Sends to the Parser
-        
+        Attributes = {}
+        if parseTitles:
+            Attributes = Iseek.titleParse(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
         return {
                     "graphid": graphID,
                     "unit":DATA_DUMP[1].replace('"', '').replace("'", '').split(",")[1],
                     "data": data,
-                    **Iseek.titleParse(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
+                    **Attributes
                 } # Returns the data
 
     
