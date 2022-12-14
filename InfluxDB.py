@@ -48,13 +48,13 @@ class InfluxClient:
             bandwidthRoC = ((inbound+outbound)-previousOutbound) / (60*5) 
             if timeThreshold < time:
                 influxArray.append({
-                    "measurement": dataSet["unit"],
+                    "measurement": "bps",
                     "tags": tags,
                     "fields": {"inbound": inbound,"outbound": outbound, "bandwidth": (inbound+outbound) },
                     "time": time
                 })
                 influxArray.append({
-                    "measurement": "bits/s^2",
+                    "measurement": "bps2",
                     "tags": tags,
                     "fields": {"bandwidthRoC": bandwidthRoC },
                     "time": time
