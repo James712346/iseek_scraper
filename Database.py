@@ -22,7 +22,6 @@ async def DatabaseParser(dataSet):
     modeledData = []
     if not len(dataSet["data"]):
         return []
-    print("DATA!")
     previousOutbound = sum(Iseek.ParseRow(dataSet["data"][0])[1:3])
     for data in dataSet["data"]:
         row = Iseek.ParseRow(data)
@@ -36,6 +35,7 @@ async def DatabaseParser(dataSet):
                 Bandwidth = sum(row[1:3]),
                 Bandwidth_RoC = sum(row[1:3]) - previousOutbound / (60*5)
             )
+
         previousOutbound = sum(row[1:3])
     #Return it
     return modeledData
@@ -46,7 +46,6 @@ async def start(IseekInstance:Iseek, DatabaseUrl:str):
     while True:
         async with IseekInstance:
             Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
-            print("Sent to DB")
         sleep(60*5)
     return None
 

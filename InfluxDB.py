@@ -19,8 +19,8 @@ class InfluxClient:
         while True:
             async with instance:
                 data = await instance.getAllData(self.InfluxDataParse, True)
+                print("Uploading GraphID: {} ")
                 self.write_data(data,write_option=ASYNCHRONOUS)
-            print("data")
             sleep(60*5)
             
 
