@@ -17,7 +17,7 @@ async def DatabaseParser(dataSet):
                                     )
     else:
         lastRow = await Transit.filter(graph_id = dataSet["graphid"]).order_by("-DateTime").first().values()
-        if lastRow: timeThreshold = lastRow['DateTime']
+        if lastRow: timeThreshold = lastRow['DateTime'].timestamp()
     # Create Transit Model
     modeledData = []
     if not len(dataSet["data"]):
