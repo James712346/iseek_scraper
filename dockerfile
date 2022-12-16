@@ -3,6 +3,6 @@ WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY scrapper.py .
-COPY InfluxDB.py .
+COPY Database.py .
 
-CMD [ "python", "-u", "./InfluxDB.py" ]
+CMD [ "python", "-u", "./Database.py" ]
