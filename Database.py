@@ -28,14 +28,14 @@ async def DatabaseParser(dataSet):
         row = Iseek.ParseRow(data)
         if timeThreshold < row[0]:
             
-            modeledData.append(Transit(
+            await Transit.create(
                 graph = graph,
                 DateTime = row[0],
                 Outbound = row[1],
                 Inbound = row[2],
                 Bandwidth = sum(row[1:3]),
                 Bandwidth_RoC = sum(row[1:3]) - previousOutbound / (60*5)
-            ))
+            )
         previousOutbound = sum(row[1:3])
     #Return it
     return modeledData
@@ -46,8 +46,6 @@ async def start(IseekInstance:Iseek, DatabaseUrl:str):
     while True:
         async with IseekInstance:
             Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
-            print(Models)
-            Transit.bulk_create(Models)
             print("Sent to DB")
         sleep(60*5)
     return None
