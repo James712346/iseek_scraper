@@ -18,7 +18,7 @@ class InfluxClient:
         from time import sleep
         while True:
             async with instance:
-                data = await instance.getAllData(self.InfluxDataParse, True, bandwidth="./bandwidth.csv")
+                data = await instance.getAllData(self.InfluxDataParse, True)
                 self.write_data(data,write_option=ASYNCHRONOUS)
             print("data")
             sleep(60*5)
@@ -37,7 +37,7 @@ class InfluxClient:
             timeThreshold = result[0].records[0].get_time().timestamp()
         return timeThreshold
 
-    def InfluxDataParse(self, dataSet):
+    async def InfluxDataParse(self, dataSet):
         influxArray = []
         timeThreshold = self.GetLastTimestamp(dataSet["graphid"])
         tags = dataSet.copy()
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg["graphs"])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg["graphs"], cfg["bandwidthfile"])
 
     IC = InfluxClient(cfg["InfluxDB"]["url"],cfg["InfluxDB"]["token"],cfg["InfluxDB"]['org'],cfg["InfluxDB"]['bucket'])
 

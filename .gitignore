@@ -1,4 +1,7 @@
 /config.yaml
 /GraphID
 /database/*
-/_pychahe__/*
+/bandwidth.csv
+/db.sqlite
+/db.sqlite-shm
+/db.sqlite-wal

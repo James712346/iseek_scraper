@@ -5,6 +5,8 @@ from pytz import timezone
 from time import sleep
 import re 
 
+bandwidthFile = None
+
 
 class Iseek:
     TimeZone = timezone("Australia/Brisbane")
@@ -13,7 +15,7 @@ class Iseek:
     LOGOUT = "logout.php"
 
 
-    def __init__(self, username:str, password:str, realm:str, graphs={}) -> None:
+    def __init__(self, username:str, password:str, realm:str, graphs={}, bandfile = "") -> None:
         """Initizes the Iseek Scrapper Class, with nessary values to complete tasks 
 
         Args:
@@ -22,10 +24,12 @@ class Iseek:
             realm (str): Which ever service the Iseek Account is connected to, local or LDAP
             graphs (dict, optional): Accept a dictornary with the key being graphID, and value being a dictornary of attibutes ie. {2380: {'state': 'QLD', 'suburb': 'N/A'}}. Defaults to {}.
         """
+        global bandwidthFile
         self.username = username
         self.password = password
         self.realm = realm
         self.graphs = graphs
+        bandwidthFile = bandfile
 
     async def __aenter__(self):
         """Used with python's 'with', therefore makes sure this script enters and closes correctly
@@ -80,7 +84,7 @@ class Iseek:
         time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
         return (time, float(Raw_Row[1]), float(Raw_Row[2]))
 
-    async def getAllData(self, CustomParser=None, flatten=False, bandwidth=None) -> list[dict]:
+    async def getAllData(self, CustomParser=None, flatten=False, **kwargs) -> list[dict]:
         """_summary_
 
         Args:
@@ -91,22 +95,12 @@ class Iseek:
         Returns:
             list[dict]: Returns dictionary with  graphID, title, unit, rawData, and any other attributes set in config.yaml
         """
-        AllData = []
-        if bandwidth:
-            CSA_to_bandwidth = {}
-            import csv
-            with open(bandwidth, newline='') as r:
-                for row in csv.DictReader(r):
-                    CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
-                
+        AllData = []               
         for graph in self.graphs:
-            data = await self.getData(graph, CustomParser == None)
-            if bandwidth:
-                if "NBN_CVC" in data:
-                    if data["NBN_CVC"] in CSA_to_bandwidth:
-                        data["max_bandwidth"] = CSA_to_bandwidth[data["NBN_CVC"]]
+            data = await self.getData(graph, CustomParser == None, **kwargs)
+
             if not type(CustomParser) == type(None):
-                data = CustomParser(data)
+                data = await CustomParser(data)
                 if flatten:
                     AllData.extend(data)
                 else:
@@ -117,13 +111,13 @@ class Iseek:
 
     def titleParse(title):
         print(title)
-        dataParsed = {"rawTitle":title }
+        dataParsed = { }
         POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
         states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)([0-9])([A-Za-z]{3})[ -]+(.*)"
+        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*) ([0-9])([A-Za-z]{3})[ -]+(.*)"
         coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
         corelimited_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*)[ -]+()(CVC[0-9]+)[ -]+()(.*)"
-        swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*([0-9])([A-Za-z]{3})"
+        swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).* ([0-9])([A-Za-z]{3})"
         swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)(?>.+ ([0-9])([A-Z]{3})|).* ([A-Z][a-z]+|VLINK)"
         
         if "swcore" in title:
@@ -138,6 +132,12 @@ class Iseek:
                 dataParsed["POI_code"] = results.group(4) + results.group(5)
             
         elif "core" in title:
+            CSA_to_bandwidth = {}
+            if bandwidthFile:
+                import csv
+                with open(bandwidthFile, newline='') as r:
+                    for row in csv.DictReader(r):
+                        CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
             results = re.search(core_regex, title)
             if not results: 
                 results = re.search(coreBackup_regex, title)
@@ -158,12 +158,16 @@ class Iseek:
             #dataParsed["connection"] = results.group(3)
             dataParsed["CSA"] = results.group(4)
             dataParsed["VLink_Circuit_ID"] = results.group(6)
+            
+            if bandwidthFile:
+                if dataParsed["NBN_CVC"] in CSA_to_bandwidth:
+                    dataParsed["max_bandwidth"] = CSA_to_bandwidth[dataParsed["NBN_CVC"]]
         elif "swc" in title:
             results = re.search(swc_regex, title)
             dataParsed["POI_state"] = POIstates[results.group(1)]
             dataParsed["POI_server"] = results.group(2)
             dataParsed["state"] = states[int(results.group(3))]
-            dataParsed["POI_code"] = results.group(3) + results.group(4)
+            #dataParsed["POI_code"] = results.group(3) + results.group(4)
         return dataParsed
 
     async def getData(self, graphID:int, parseData=False, parseTitles=True) -> dict:
@@ -188,6 +192,7 @@ class Iseek:
             Attributes = Iseek.titleParse(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
         return {
                     "graphid": graphID,
+                    "rawTitle":DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1],
                     "unit":DATA_DUMP[1].replace('"', '').replace("'", '').split(",")[1],
                     "data": data,
                     **Attributes
@@ -207,12 +212,12 @@ class Iseek:
 if __name__ == "__main__": 
     async def start(instance):
         async with instance as iseek:
-            print(await iseek.getAllData(bandwidth="./bandwidth.csv"))
+            print(await iseek.getAllData())
 
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'], cfg["bandwidthfile"])
     arun(start(Object))
 
 
