@@ -1,4 +1,4 @@
-from tortoise import Tortoise
+from tortoise import Tortoise, exceptions
 from asyncio import run
 from models import Transit, Graphs
 from time import sleep
@@ -25,16 +25,17 @@ async def DatabaseParser(dataSet):
     previousOutbound = sum(Iseek.ParseRow(dataSet["data"][0])[1:3])
     for data in dataSet["data"]:
         row = Iseek.ParseRow(data)
-        if timeThreshold < row[0]:
-            
-            await Transit.create(
-                graph = graph,
-                DateTime = row[0],
-                Outbound = row[1],
-                Inbound = row[2],
-                Bandwidth = sum(row[1:3]),
-                Bandwidth_RoC = sum(row[1:3]) - previousOutbound / (60*5)
-            )
+        if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
+            format_row = {"graph" : graph,
+                "DateTime" : row[0],
+                "Outbound" : row[1],
+                "Inbound" : row[2],
+                "Bandwidth" : round(sum(row[1:3]), 4)}
+            RoC = sum(row[1:3]) - previousOutbound / (60*5)
+            if type(RoC) == float:
+                format_row["Bandwidth_RoC"] = round(RoC, 4)
+            print(format_row)
+            await Transit.create(**format_row)
 
         previousOutbound = sum(row[1:3])
     #Return it
@@ -42,7 +43,11 @@ async def DatabaseParser(dataSet):
 
 async def start(IseekInstance:Iseek, DatabaseUrl:str):
     await Tortoise.init(db_url = DatabaseUrl,modules={"models": ["models"]} )
-    await Tortoise.generate_schemas()
+    try:
+        await Tortoise.generate_schemas(safe=True)
+    except exceptions.OperationalError:
+        print("Schemas already created")
+
     while True:
         async with IseekInstance:
             Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)

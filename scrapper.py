@@ -2,7 +2,6 @@ from aiohttp import ClientSession
 from asyncio import run as arun
 from datetime import datetime
 from pytz import timezone
-from time import sleep
 import re 
 
 bandwidthFile = None
