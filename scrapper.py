@@ -2,7 +2,7 @@ from aiohttp import ClientSession
 from asyncio import run as arun
 from datetime import datetime
 from pytz import timezone
-import re 
+import re, logging
 
 bandwidthFile = None
 
@@ -12,8 +12,9 @@ class Iseek:
     URL = "https://customer.ims.iseek.com.au/"
     ACTION = "graph_xport.php"
     LOGOUT = "logout.php"
+    
 
-
+    Logger = logging.getLogger("Iseek")
     def __init__(self, username:str, password:str, realm:str, graphs={}, bandfile = "") -> None:
         """Initizes the Iseek Scrapper Class, with nessary values to complete tasks 
 
@@ -29,7 +30,7 @@ class Iseek:
         self.realm = realm
         self.graphs = graphs
         bandwidthFile = bandfile
-
+    
     async def __aenter__(self):
         """Used with python's 'with', therefore makes sure this script enters and closes correctly
 
@@ -50,39 +51,120 @@ class Iseek:
             'realm': self.realm 
         }
         await self.Session.post(Iseek.URL+Iseek.ACTION, data=payload)
-
+    
     async def logout(self):
         """Logs out of the Iseek Session
         """
         await self.Session.post(Iseek.URL+Iseek.LOGOUT)
 
+    # def ParseData(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
+    #     """Loops through that data, parsing it to a state that is easy to use
 
-    def ParseData(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
-        """Loops through that data, parsing it to a state that is easy to use
+    #     Args:
+    #         DATA_DUMP (list[str]): list of data, received from getData 
+    #         timeThreshold (int, optional): Timestamp (in Unix time) of the last entry into the database, so that those, and later entries are skipped. Defaults to 0.
 
-        Args:
-            DATA_DUMP (list[str]): list of data, received from getData 
-            timeThreshold (int, optional): Timestamp (in Unix time) of the last entry into the database, so that those, and later entries are skipped. Defaults to 0.
+    #     Returns:
+    #         list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
+    #     """
+    #     Parsed_Data = []
+    #     previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2] + Iseek.ParseRow(DATA_DUMP[0])[1]
+    #     for data in DATA_DUMP:
+    #         row = Iseek.ParseRow(data)
+    #         if timeThreshold < row[0]:
+    #             BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
+    #             row = row + tuple([row[1]+row[2], BandwidthRoC])
+    #             Parsed_Data.append(row)
+    #         previousOutbound = row[3]
+    #     return Parsed_Data
+    class Parse:
+        Logger = logging.getLogger("Iseek.Parser")
+        def __init__(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
+            """Loops through that data, parsing it to a state that is easy to use
 
-        Returns:
-            list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
-        """
-        Parsed_Data = []
-        previousOutbound = Iseek.ParseRow(DATA_DUMP[0])[2] + Iseek.ParseRow(DATA_DUMP[0])[1]
-        for data in DATA_DUMP:
-            row = Iseek.ParseRow(data)
-            if timeThreshold < row[0]:
-                BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
-                row = row + tuple([row[1]+row[2], BandwidthRoC])
-                Parsed_Data.append(row)
-            previousOutbound = row[3]
-        return Parsed_Data
+            Args:
+                DATA_DUMP (list[str]): list of data, received from getData 
+                timeThreshold (int, optional): Timestamp (in Unix time) of the last entry into the database, so that those, and later entries are skipped. Defaults to 0.
 
-    def ParseRow(Raw_Row):
-        Raw_Row = Raw_Row.replace('"', '').split(",")
-        time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
-        return (time, float(Raw_Row[1]), float(Raw_Row[2]))
+            Returns:
+                list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
+            """
+            Parsed_Data = []
+            previousOutbound = Iseek.Parse.Row(DATA_DUMP[0])[2] + Iseek.ParseRow(DATA_DUMP[0])[1]
+            for data in DATA_DUMP:
+                row = Iseek.Parse.Row(data)
+                if timeThreshold < row[0]:
+                    BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
+                    row = row + tuple([row[1]+row[2], BandwidthRoC])
+                    Parsed_Data.append(row)
+                previousOutbound = row[3]
+            return Parsed_Data
 
+        def Row(Raw_Row):
+            Raw_Row = Raw_Row.replace('"', '').split(",")
+            time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
+            return (time, float(Raw_Row[1]), float(Raw_Row[2]))
+        
+        def title(title):
+            dataParsed = { }
+            POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
+            states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
+            core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*) ([0-9])([A-Za-z]{3})[ -]+(.*)"
+            coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
+            corelimited_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*)[ -]+()(CVC[0-9]+)[ -]+()(.*)"
+            swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).* ([0-9])([A-Za-z]{3})"
+            swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)(?>.+ ([0-9])([A-Z]{3})|).* ([A-Z][a-z]+|VLINK)"
+            
+            if "swcore" in title:
+                results = re.search(swcore_regex, title)
+                dataParsed["POI_state"] = POIstates[results.group(1)]
+                dataParsed["POI_server"] = results.group(2)
+                dataParsed["channel"] = results.group(3)
+                dataParsed["state"] = POIstates[results.group(1)]
+                dataParsed["location"] = results.group(6)
+                if (results.group(4)):
+                    dataParsed["state"] =states[int(results.group(4))] 
+                    dataParsed["POI_code"] = results.group(4) + results.group(5)
+                
+            elif "core" in title:
+                CSA_to_bandwidth = {}
+                if bandwidthFile:
+                    import csv
+                    with open(bandwidthFile, newline='') as r:
+                        for row in csv.DictReader(r):
+                            CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
+                results = re.search(core_regex, title)
+                if not results: 
+                    results = re.search(coreBackup_regex, title)
+                    if (not results):
+                        results = re.search(corelimited_regex, title)
+                    dataParsed["location"] = results.group(7)
+                else:
+                    states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
+                    dataParsed["state"] = states[int(results.group(8))]
+                    dataParsed["POI_code"] = results.group(8) + results.group(9)
+                    dataParsed["location"] = results.group(10)
+                    if (results.group(7)):
+                        dataParsed["location"] = results.group(7) + dataParsed["location"]
+
+                dataParsed["POI_state"] = POIstates[results.group(1)]
+                dataParsed["POI_server"] = results.group(2)
+                dataParsed["NBN_CVC"] = results.group(5)
+                #dataParsed["connection"] = results.group(3)
+                dataParsed["CSA"] = results.group(4)
+                dataParsed["VLink_Circuit_ID"] = results.group(6)
+                
+                if bandwidthFile:
+                    if dataParsed["NBN_CVC"] in CSA_to_bandwidth:
+                        dataParsed["max_bandwidth"] = CSA_to_bandwidth[dataParsed["NBN_CVC"]]
+            elif "swc" in title:
+                results = re.search(swc_regex, title)
+                dataParsed["POI_state"] = POIstates[results.group(1)]
+                dataParsed["POI_server"] = results.group(2)
+                dataParsed["state"] = states[int(results.group(3))]
+                #dataParsed["POI_code"] = results.group(3) + results.group(4)
+            return dataParsed
+    
     async def getAllData(self, CustomParser=None, flatten=False, **kwargs) -> list[dict]:
         """_summary_
 
@@ -108,66 +190,7 @@ class Iseek:
             else: AllData.append(data)
         return AllData
 
-    def titleParse(title):
-        print(title)
-        dataParsed = { }
-        POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
-        states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-        core_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*) ([0-9])([A-Za-z]{3})[ -]+(.*)"
-        coreBackup_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*) (CSA[0-9]+)[ -]+(CVC[0-9]+)[ -]+(VLK[0-9]+)[ -]+(.*)"
-        corelimited_regex = "([A-Za-z]{2,3})-([A-Za-z]+)-[A-Za-z0-9]+[ -]+(.*)[ -]+()(CVC[0-9]+)[ -]+()(.*)"
-        swc_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).* ([0-9])([A-Za-z]{3})"
-        swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)(?>.+ ([0-9])([A-Z]{3})|).* ([A-Z][a-z]+|VLINK)"
-        
-        if "swcore" in title:
-            results = re.search(swcore_regex, title)
-            dataParsed["POI_state"] = POIstates[results.group(1)]
-            dataParsed["POI_server"] = results.group(2)
-            dataParsed["channel"] = results.group(3)
-            dataParsed["state"] = POIstates[results.group(1)]
-            dataParsed["location"] = results.group(6)
-            if (results.group(4)):
-                dataParsed["state"] =states[int(results.group(4))] 
-                dataParsed["POI_code"] = results.group(4) + results.group(5)
-            
-        elif "core" in title:
-            CSA_to_bandwidth = {}
-            if bandwidthFile:
-                import csv
-                with open(bandwidthFile, newline='') as r:
-                    for row in csv.DictReader(r):
-                        CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
-            results = re.search(core_regex, title)
-            if not results: 
-                results = re.search(coreBackup_regex, title)
-                if (not results):
-                    results = re.search(corelimited_regex, title)
-                dataParsed["location"] = results.group(7)
-            else:
-                states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
-                dataParsed["state"] = states[int(results.group(8))]
-                dataParsed["POI_code"] = results.group(8) + results.group(9)
-                dataParsed["location"] = results.group(10)
-                if (results.group(7)):
-                    dataParsed["location"] = results.group(7) + dataParsed["location"]
-
-            dataParsed["POI_state"] = POIstates[results.group(1)]
-            dataParsed["POI_server"] = results.group(2)
-            dataParsed["NBN_CVC"] = results.group(5)
-            #dataParsed["connection"] = results.group(3)
-            dataParsed["CSA"] = results.group(4)
-            dataParsed["VLink_Circuit_ID"] = results.group(6)
-            
-            if bandwidthFile:
-                if dataParsed["NBN_CVC"] in CSA_to_bandwidth:
-                    dataParsed["max_bandwidth"] = CSA_to_bandwidth[dataParsed["NBN_CVC"]]
-        elif "swc" in title:
-            results = re.search(swc_regex, title)
-            dataParsed["POI_state"] = POIstates[results.group(1)]
-            dataParsed["POI_server"] = results.group(2)
-            dataParsed["state"] = states[int(results.group(3))]
-            #dataParsed["POI_code"] = results.group(3) + results.group(4)
-        return dataParsed
+    
 
     async def getData(self, graphID:int, parseData=False, parseTitles=True) -> dict:
         """Gets data for a given graphID from https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree
@@ -185,10 +208,10 @@ class Iseek:
             DATA_DUMP = DATA_DUMP.split("\n") #Convert each line to rows in a python list
         data = DATA_DUMP[10:-1] # Index slice off the graph properties and headings, to be left with pure data
         if parseData: # Check if parsing is needs to be done 
-            data = Iseek.ParseData(data) # Sends to the Parser
+            data = Iseek.Parse(data) # Sends to the Parser
         Attributes = {}
         if parseTitles:
-            Attributes = Iseek.titleParse(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
+            Attributes = Iseek.Parse.title(DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1])
         return {
                     "graphid": graphID,
                     "rawTitle":DATA_DUMP[0].replace('"', '').replace("'", '').split(",")[1],

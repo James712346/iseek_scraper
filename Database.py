@@ -3,6 +3,9 @@ from asyncio import run
 from models import Transit, Graphs
 from time import sleep
 from scrapper import Iseek
+import logging
+
+logger = logging.getLogger("Database Module")
 
 async def DatabaseParser(dataSet):
     # Check if graphID already in database
@@ -13,7 +16,7 @@ async def DatabaseParser(dataSet):
         graph = await Graphs.create(
                                     ID=dataSet["graphid"],
                                     rawTitle=dataSet["rawTitle"],
-                                    **Iseek.titleParse(dataSet["rawTitle"])
+                                    **Iseek.Parse.title(dataSet["rawTitle"])
                                     )
     else:
         lastRow = await Transit.filter(graph_id = dataSet["graphid"]).order_by("-DateTime").first().values()
@@ -22,9 +25,9 @@ async def DatabaseParser(dataSet):
     modeledData = []
     if not len(dataSet["data"]):
         return []
-    previousOutbound = sum(Iseek.ParseRow(dataSet["data"][0])[1:3])
+    previousOutbound = sum(Iseek.Parse.Row(dataSet["data"][0])[1:3])
     for data in dataSet["data"]:
-        row = Iseek.ParseRow(data)
+        row = Iseek.Parse.Row(data)
         if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
             format_row = {"graph" : graph,
                 "DateTime" : row[0],
