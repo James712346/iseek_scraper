@@ -7,6 +7,7 @@ import re, logging
 bandwidthFile = None
 
 
+
 class Iseek:
     TimeZone = timezone("Australia/Brisbane")
     URL = "https://customer.ims.iseek.com.au/"
@@ -24,6 +25,7 @@ class Iseek:
             realm (str): Which ever service the Iseek Account is connected to, local or LDAP
             graphs (dict, optional): Accept a dictornary with the key being graphID, and value being a dictornary of attibutes ie. {2380: {'state': 'QLD', 'suburb': 'N/A'}}. Defaults to {}.
         """
+        __class__.Logger.info("Initizing Iseek scrapper")
         global bandwidthFile
         self.username = username
         self.password = password
@@ -44,6 +46,8 @@ class Iseek:
     async def login(self):
         """Login into Iseek, and scripts session
         """
+        __class__.Logger.info("Logging into Iseek")
+
         payload={
             'action': 'login',
             'login_username': self.username,
@@ -55,6 +59,8 @@ class Iseek:
     async def logout(self):
         """Logs out of the Iseek Session
         """
+        __class__.Logger.info("Logging out")
+
         await self.Session.post(Iseek.URL+Iseek.LOGOUT)
 
     # def ParseData(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
@@ -78,7 +84,7 @@ class Iseek:
     #         previousOutbound = row[3]
     #     return Parsed_Data
     class Parse:
-        Logger = logging.getLogger("Iseek.Parser")
+        Logger = logging.getLogger("Iseek.parser")
         def __init__(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
             """Loops through that data, parsing it to a state that is easy to use
 
@@ -99,10 +105,15 @@ class Iseek:
                     Parsed_Data.append(row)
                 previousOutbound = row[3]
             return Parsed_Data
+        
 
         def Row(Raw_Row):
             Raw_Row = Raw_Row.replace('"', '').split(",")
             time = int(datetime.timestamp(Iseek.TimeZone.localize(datetime.strptime(Raw_Row[0],"%Y-%m-%d %H:%M:%S"))))
+            __class__.Logger.debug(f"rows: {Raw_Row[1]} {Raw_Row[2]}")
+            if 'NaN' in (Raw_Row[1], Raw_Row[2]): 
+                __class__.Logger.debug(f"[row.check] {float('nan') in (float(Raw_Row[1]), float(Raw_Row[2]))}")
+                raise ValueError("NaN is invaild data point")
             return (time, float(Raw_Row[1]), float(Raw_Row[2]))
         
         def title(title):
@@ -116,6 +127,8 @@ class Iseek:
             swcore_regex = "([A-Za-z]{2,3})-([A-Za-z0-9]+).*port-channel([0-9]+)(?>.+ ([0-9])([A-Z]{3})|).* ([A-Z][a-z]+|VLINK)"
             
             if "swcore" in title:
+                __class__.Logger.debug(f"Parsing {title} as a swcore title")
+
                 results = re.search(swcore_regex, title)
                 dataParsed["POI_state"] = POIstates[results.group(1)]
                 dataParsed["POI_server"] = results.group(2)
@@ -127,6 +140,7 @@ class Iseek:
                     dataParsed["POI_code"] = results.group(4) + results.group(5)
                 
             elif "core" in title:
+                __class__.Logger.debug(f"Parsing {title} as a core title")
                 CSA_to_bandwidth = {}
                 if bandwidthFile:
                     import csv
@@ -135,6 +149,7 @@ class Iseek:
                             CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
                 results = re.search(core_regex, title)
                 if not results: 
+                    __class__.Logger.debug(f"Parsing {title} as a core #2 title")
                     results = re.search(coreBackup_regex, title)
                     if (not results):
                         results = re.search(corelimited_regex, title)
@@ -158,11 +173,14 @@ class Iseek:
                     if dataParsed["NBN_CVC"] in CSA_to_bandwidth:
                         dataParsed["max_bandwidth"] = CSA_to_bandwidth[dataParsed["NBN_CVC"]]
             elif "swc" in title:
+                __class__.Logger.debug(f"Parsing {title} as a swc title")
                 results = re.search(swc_regex, title)
                 dataParsed["POI_state"] = POIstates[results.group(1)]
                 dataParsed["POI_server"] = results.group(2)
                 dataParsed["state"] = states[int(results.group(3))]
                 #dataParsed["POI_code"] = results.group(3) + results.group(4)
+            else:
+                __class__.Logger.warning(f"Failed Parsing {title}")
             return dataParsed
     
     async def getAllData(self, CustomParser=None, flatten=False, **kwargs) -> list[dict]:
@@ -228,7 +246,7 @@ class Iseek:
         await self.Session.__aexit__(exc_type, exc_value, traceback)
 
 
-          
+  
 
 # Debugging/Testing Purposes
 if __name__ == "__main__": 

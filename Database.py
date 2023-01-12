@@ -1,11 +1,13 @@
-from tortoise import Tortoise, exceptions
+from tortoise import Tortoise, exceptions 
 from asyncio import run
 from models import Transit, Graphs
-from time import sleep
 from scrapper import Iseek
 import logging
+from time import sleep
+from sys import stdout
+logger = logging.getLogger("Iseek.database")
 
-logger = logging.getLogger("Database Module")
+ErroredGraphs = []
 
 async def DatabaseParser(dataSet):
     # Check if graphID already in database
@@ -27,38 +29,70 @@ async def DatabaseParser(dataSet):
         return []
     previousOutbound = sum(Iseek.Parse.Row(dataSet["data"][0])[1:3])
     for data in dataSet["data"]:
-        row = Iseek.Parse.Row(data)
-        if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
-            format_row = {"graph" : graph,
-                "DateTime" : row[0],
-                "Outbound" : row[1],
-                "Inbound" : row[2],
-                "Bandwidth" : round(sum(row[1:3]), 4)}
-            RoC = sum(row[1:3]) - previousOutbound / (60*5)
-            if type(RoC) == float:
-                format_row["Bandwidth_RoC"] = round(RoC, 4)
-            print(format_row)
-            await Transit.create(**format_row)
+        try:
+            row = Iseek.Parse.Row(data)
+        except ValueError:
+            ErroredGraphs.append(dataSet["graphid"])
+            logger.error(f"{dataSet['graphid']} failed to grab data from iseek, one of the datapoint was NaN")
+            logger.error(f"     - Will go to sleep for 30 Seconds to wait for Iseek to update their data")
+            sleep(30)
+            return [dataSet["graphid"]]
+        else:
+            if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
+                format_row = {"graph" : graph,
+                    "DateTime" : row[0],
+                    "Outbound" : row[1],
+                    "Inbound" : row[2],
+                    "Bandwidth" : round(sum(row[1:3]), 4)}
+                RoC = sum(row[1:3]) - previousOutbound / (60*5)
+                if type(RoC) == float:
+                    format_row["Bandwidth_RoC"] = round(RoC, 4)
+                logger.debug(f"Adding {format_row} to database")
+                try:
+                    await Transit.create(**format_row)
+                except exceptions.OperationalError:
+                    logger.error(f"Failed to add {format_row} to database")
 
-        previousOutbound = sum(row[1:3])
+            previousOutbound = sum(row[1:3])
     #Return it
-    return modeledData
+    return []
 
 async def start(IseekInstance:Iseek, DatabaseUrl:str):
     await Tortoise.init(db_url = DatabaseUrl,modules={"models": ["models"]} )
     try:
         await Tortoise.generate_schemas(safe=True)
     except exceptions.OperationalError:
-        print("Schemas already created")
+        logger.error("Error when creating the Schema (can ignore if using mssql, as it usally minor)")
+    async with IseekInstance:
+        Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
+        for graph in ErroredGraphs:
+            data = await IseekInstance.getData(graph, None)
+            if await DatabaseParser(data) == [graph]:
+                logger.critical(f"Database failed a second time to grab data from {graph}!")
 
-    while True:
-        async with IseekInstance:
-            Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
-        sleep(60*5)
     return None
 
 if __name__ == "__main__":
+    handler = logging.StreamHandler(stdout)
+    formatter = logging.Formatter(
+        '%(asctime)s [%(name)-14s] %(levelname)-8s %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    Iseek.Logger.addHandler(handler)
+    Iseek.Parse.Logger.addHandler(handler)
+
+    logger.propagate = False
+    Iseek.Logger.propagate = False
+    Iseek.Parse.Logger.propagate = False
+
+
+    logger.setLevel(logging.INFO)
+    Iseek.Logger.setLevel(logging.INFO)
+    Iseek.Parse.Logger.setLevel(logging.INFO)   
+    
+    logger.info("Starting Database")
     import yaml
+    logger.info("Loading config from config.yaml")
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
     Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'], cfg["bandwidthfile"])
