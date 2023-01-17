@@ -62,7 +62,7 @@ async def start(IseekInstance:Iseek, DatabaseUrl:str):
     try:
         await Tortoise.generate_schemas(safe=True)
     except exceptions.OperationalError:
-        logger.error("Error when creating the Schema (can ignore if using mssql, as it usally minor)")
+        logger.error("Error when creating the Schema (can ignore if using mssql, as it usally minor)", exc_info=True)
     async with IseekInstance:
         Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
         for graph in ErroredGraphs:
