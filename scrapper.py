@@ -146,7 +146,7 @@ class Iseek:
                     import csv
                     with open(bandwidthFile, newline='') as r:
                         for row in csv.DictReader(r):
-                            CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
+                            CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"] * 1000000
                 results = re.search(core_regex, title)
                 if not results: 
                     __class__.Logger.debug(f"Parsing {title} as a core #2 title")
