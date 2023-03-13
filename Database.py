@@ -44,7 +44,7 @@ async def DatabaseParser(dataSet):
                     "Outbound" : row[1],
                     "Inbound" : row[2],
                     "Bandwidth" : round(sum(row[1:3]), 4)}
-                RoC = sum(row[1:3]) - previousOutbound / (60*5)
+                RoC = (sum(row[1:3]) - previousOutbound) / (60*5)
                 if type(RoC) == float:
                     format_row["Bandwidth_RoC"] = round(RoC, 4)
                 logger.debug(f"Adding {format_row} to database")
