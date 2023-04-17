@@ -99,9 +99,9 @@ if __name__ == "__main__":
     Iseek.Parse.Logger.propagate = False
 
 
-    logger.setLevel(logging.DEBUG)
-    Iseek.Logger.setLevel(logging.DEBUG)
-    Iseek.Parse.Logger.setLevel(logging.DEBUG)   
+    logger.setLevel(logging.INFO)
+    Iseek.Logger.setLevel(logging.INFO)
+    Iseek.Parse.Logger.setLevel(logging.INFO)   
     
     logger.info("Starting Database")
     import yaml

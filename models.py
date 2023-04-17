@@ -26,6 +26,7 @@ class Graphs(Model):
     NNI_Link_ID = fields.CharField(15,null=True,pk=False, generated=False)
     VNNI_ID = fields.CharField(15,null=True,pk=False, generated=False)
     STAG_Ranges = fields.CharField(8,null=True, pk=False, generated=False)
+    notes = fields.TextField(null=True,pk=False, generated=False)
     relation: fields.ReverseRelation["Transit"]
 
 
