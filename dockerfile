@@ -21,11 +21,12 @@ RUN apk add --allow-untrusted msodbcsql18_18.1.2.1-1_amd64.apk
 RUN apk add --allow-untrusted mssql-tools18_18.1.1.1-1_amd64.apk
 
 
-WORKDIR /usr/src/app
+WORKDIR /root/iseek_scraper/
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY scrapper.py .
 COPY models.py .
 COPY Database.py .
-
+COPY config.yaml .
+COPY bandwidth.csv .
 CMD [ "python", "-u", "./Database.py" ]

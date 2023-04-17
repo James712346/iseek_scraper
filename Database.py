@@ -11,7 +11,6 @@ ErroredGraphs = []
 
 async def DatabaseParser(dataSet):
     # Check if graphID already in database
-
     graph = await Graphs.get_or_none(ID=dataSet["graphid"])
     timeThreshold = 0 
     if (not graph): 
@@ -27,8 +26,22 @@ async def DatabaseParser(dataSet):
     modeledData = []
     if not len(dataSet["data"]):
         return []
-    previousOutbound = sum(Iseek.Parse.Row(dataSet["data"][0])[1:3])
+    logger.debug(f"First Data Point for graph {dataSet['graphid']} \n \t data: {dataSet['data'][0]}")
+    offset = 0
+    if len(str(dataSet["graphid"])) == 5:
+        offset = int(str(dataSet["graphid"])[4:])
+        data = dataSet["data"][0].split(",")
+        data = ",".join([data[0]] + data[1+offset*2:3+offset*2])
+    else:
+        data = dataSet["data"][0]
+    logger.debug(f"Initial data run {data}")
+    previousOutbound = sum(Iseek.Parse.Row(data)[1:3])
     for data in dataSet["data"]:
+        logger.debug(f"Parsing data: {data}")
+        if offset:
+            data = data.split(",")
+            data = ",".join([data[0]] + data[1+offset*2:3+offset*2])
+            logger.debug(f"Offset Data Transform: {data}")
         try:
             row = Iseek.Parse.Row(data)
         except ValueError:
@@ -41,10 +54,10 @@ async def DatabaseParser(dataSet):
             if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
                 format_row = {"graph" : graph,
                     "DateTime" : row[0],
-                    "Outbound" : row[1],
-                    "Inbound" : row[2],
+                    "Outbound" : row[2],
+                    "Inbound" : row[1],
                     "Bandwidth" : round(sum(row[1:3]), 4)}
-                RoC = sum(row[1:3]) - previousOutbound / (60*5)
+                RoC = (sum(row[1:3]) - previousOutbound) / (60*5)
                 if type(RoC) == float:
                     format_row["Bandwidth_RoC"] = round(RoC, 4)
                 logger.debug(f"Adding {format_row} to database")
@@ -86,9 +99,9 @@ if __name__ == "__main__":
     Iseek.Parse.Logger.propagate = False
 
 
-    logger.setLevel(logging.INFO)
-    Iseek.Logger.setLevel(logging.INFO)
-    Iseek.Parse.Logger.setLevel(logging.INFO)   
+    logger.setLevel(logging.DEBUG)
+    Iseek.Logger.setLevel(logging.DEBUG)
+    Iseek.Parse.Logger.setLevel(logging.DEBUG)   
     
     logger.info("Starting Database")
     import yaml

@@ -85,7 +85,7 @@ class Iseek:
     #     return Parsed_Data
     class Parse:
         Logger = logging.getLogger("Iseek.parser")
-        def __init__(DATA_DUMP:list[str], timeThreshold=0) -> list[tuple]:
+        def __init__(DATA_DUMP:list[str], timeThreshold=0, Rowoffset = 0) -> list[tuple]:
             """Loops through that data, parsing it to a state that is easy to use
 
             Args:
@@ -96,8 +96,11 @@ class Iseek:
                 list[tuple]: Returns a list containing tuple with a structure of (timestamp, inbound, outbound). Timestamp is formatted in Unix time
             """
             Parsed_Data = []
-            previousOutbound = Iseek.Parse.Row(DATA_DUMP[0])[2] + Iseek.ParseRow(DATA_DUMP[0])[1]
+            data = DATA_DUMP[0][0] + DATA_DUMP[0][1+Rowoffset*2:3+Rowoffset*2]
+            previousOutbound = sum(Iseek.Parse.Row(data)[1:3])
             for data in DATA_DUMP:
+                if Rowoffset:
+                    data = data[0] + data[1+Rowoffset*2:3+Rowoffset*2]
                 row = Iseek.Parse.Row(data)
                 if timeThreshold < row[0]:
                     BandwidthRoC = ((row[1]+row[2])-previousOutbound) / (60*5) 
@@ -146,7 +149,7 @@ class Iseek:
                     import csv
                     with open(bandwidthFile, newline='') as r:
                         for row in csv.DictReader(r):
-                            CSA_to_bandwidth[row["NBN CVC"]] = row["Bandwidth (Mbps)"]
+                            CSA_to_bandwidth[row["NBN CVC"]] = int(row["Bandwidth (Mbps)"]) * 1000000
                 results = re.search(core_regex, title)
                 if not results: 
                     __class__.Logger.debug(f"Parsing {title} as a core #2 title")
@@ -181,6 +184,7 @@ class Iseek:
                 #dataParsed["POI_code"] = results.group(3) + results.group(4)
             else:
                 __class__.Logger.warning(f"Failed Parsing {title}")
+            __class__.Logger.debug(f"Title Parsed {str(dataParsed)[:300]}")
             return dataParsed
     
     async def getAllData(self, CustomParser=None, flatten=False, **kwargs) -> list[dict]:
@@ -220,7 +224,7 @@ class Iseek:
         Returns:
             dict: Returns the Title, GraphID, Unit, and Data in a dictionary
         """
-        var = f"?local_graph_id={graphID}&rra_id=5&view_type=tree" # Sets up url variables
+        var = f"?local_graph_id={str(graphID)[:4]}&rra_id=5&view_type=tree" # Sets up url variables
         async with self.Session.post(Iseek.URL+Iseek.ACTION+var) as responce: # Sends a post to https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree, and recieving CSV data into variable 'responce'
             DATA_DUMP = await responce.text() #Get the raw text from the responce
             DATA_DUMP = DATA_DUMP.split("\n") #Convert each line to rows in a python list
