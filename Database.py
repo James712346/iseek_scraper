@@ -54,8 +54,8 @@ async def DatabaseParser(dataSet):
             if timeThreshold < row[0] and list(map(type, row[1:3])) == [float, float]:
                 format_row = {"graph" : graph,
                     "DateTime" : row[0],
-                    "Outbound" : row[1],
-                    "Inbound" : row[2],
+                    "Outbound" : row[2],
+                    "Inbound" : row[1],
                     "Bandwidth" : round(sum(row[1:3]), 4)}
                 RoC = (sum(row[1:3]) - previousOutbound) / (60*5)
                 if type(RoC) == float:

@@ -35,8 +35,8 @@ class Transit(Model):
     index = ("DateTime", "graph")
     graph: fields.ForeignKeyRelation[Graphs] = fields.ForeignKeyField("models.Graphs", related_name="relation")
     DateTime = fields.DatetimeField()
-    Inbound = fields.FloatField(description="bps")
     Outbound = fields.FloatField(description="bps")
+    Inbound = fields.FloatField(description="bps")
     Bandwidth = fields.FloatField(description="bps")
     Bandwidth_RoC = fields.FloatField(description="bps^2", null=True)
 
