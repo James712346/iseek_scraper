@@ -79,7 +79,7 @@ async def start(IseekInstance:Iseek, DatabaseUrl:str):
     async with IseekInstance:
         Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
         for graph in ErroredGraphs:
-            data = await IseekInstance.getData(graph, None)
+            data = await IseekInstance.getData(graph, None, parseTitles=False)
             if await DatabaseParser(data) == [graph]:
                 logger.critical(f"Database failed a second time to grab data from {graph}!")
 

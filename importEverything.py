@@ -9,15 +9,21 @@ async def start(DatabaseUrl):
 
     await Tortoise.init(db_url = DatabaseUrl,modules={"models": ["models"]} )
 
-    workbook = load_workbook(filename="VNNI CVC.xlsx")
+    workbook = load_workbook(filename="C:\\Users\\JamesPrince\\vonex.biz\\2SG Wholesale - NBN Direct Migration\\VNNI CVC.xlsx")
 
     for nsheet in workbook.sheetnames[1:]:
         sheet = workbook[nsheet]
         RowsToUpdate = []
-        for row in sheet.iter_rows(min_row=2, max_col=17, values_only=True):
+        for row in sheet.iter_rows(min_row=2, max_col=18, values_only=True):
+            if "WA" in nsheet:
+                row = list(row)
+                row.pop(1)
             Poicode = row[5].split("-")[0].rstrip()
             graph = None
+            Location = None
+
             if len(Poicode) == 4:
+                Location = row[5].split("-")[1].split(",")[0].strip()
                 graph = await Graphs.get_or_none(POI_code=Poicode)
             if not graph:
                 graph = await Graphs.get_or_none(NBN_CVC=row[8])
@@ -37,10 +43,12 @@ async def start(DatabaseUrl):
                 graph.VLink_Circuit_ID = row[14]
                 graph.STAG_Ranges = row[15]
                 graph.max_bandwidth = int(row[16])  * 1000000
+                if Location:
+                    graph.location = Location
                 RowsToUpdate.append(graph)
             else:
                 print(f"POI:{row[5]} is missing")
-        await Graphs.bulk_update(RowsToUpdate, fields=["AGVL", "Optus_STag", "NBN_STag","VTag_VLAN_ID", "CSA", "OPTUS_CVC","NBN_CVC", "OON", "ORD_VLINK", "ORD_CVC", "NNI_Link_ID", "VNNI_ID", "VLink_Circuit_ID", "STAG_Ranges" , "max_bandwidth"])
+        await Graphs.bulk_update(RowsToUpdate, fields=["AGVL", "Optus_STag", "NBN_STag","VTag_VLAN_ID","location", "CSA", "OPTUS_CVC","NBN_CVC", "OON", "ORD_VLINK", "ORD_CVC", "NNI_Link_ID", "VNNI_ID", "VLink_Circuit_ID", "STAG_Ranges" , "max_bandwidth"])
     return None
 
 import yaml
