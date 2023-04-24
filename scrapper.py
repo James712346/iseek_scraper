@@ -4,7 +4,6 @@ from datetime import datetime
 from pytz import timezone
 import re, logging
 
-bandwidthFile = None
 
 
 
@@ -16,7 +15,7 @@ class Iseek:
     
 
     Logger = logging.getLogger("Iseek")
-    def __init__(self, username:str, password:str, realm:str, graphs={}, bandfile = "") -> None:
+    def __init__(self, username:str, password:str, realm:str, graphs={}) -> None:
         """Initizes the Iseek Scrapper Class, with nessary values to complete tasks 
 
         Args:
@@ -26,12 +25,10 @@ class Iseek:
             graphs (dict, optional): Accept a dictornary with the key being graphID, and value being a dictornary of attibutes ie. {2380: {'state': 'QLD', 'suburb': 'N/A'}}. Defaults to {}.
         """
         __class__.Logger.info("Initizing Iseek scrapper")
-        global bandwidthFile
         self.username = username
         self.password = password
         self.realm = realm
         self.graphs = graphs
-        bandwidthFile = bandfile
     
     async def __aenter__(self):
         """Used with python's 'with', therefore makes sure this script enters and closes correctly
@@ -144,12 +141,6 @@ class Iseek:
                 
             elif "core" in title:
                 __class__.Logger.debug(f"Parsing {title} as a core title")
-                CSA_to_bandwidth = {}
-                if bandwidthFile:
-                    import csv
-                    with open(bandwidthFile, newline='') as r:
-                        for row in csv.DictReader(r):
-                            CSA_to_bandwidth[row["NBN CVC"]] = int(row["Bandwidth (Mbps)"]) * 1000000
                 results = re.search(core_regex, title)
                 if not results: 
                     __class__.Logger.debug(f"Parsing {title} as a core #2 title")
@@ -172,9 +163,6 @@ class Iseek:
                 dataParsed["CSA"] = results.group(4)
                 dataParsed["VLink_Circuit_ID"] = results.group(6)
                 
-                if bandwidthFile:
-                    if dataParsed["NBN_CVC"] in CSA_to_bandwidth:
-                        dataParsed["max_bandwidth"] = CSA_to_bandwidth[dataParsed["NBN_CVC"]]
             elif "swc" in title:
                 __class__.Logger.debug(f"Parsing {title} as a swc title")
                 results = re.search(swc_regex, title)
@@ -261,7 +249,7 @@ if __name__ == "__main__":
     import yaml
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'], cfg["bandwidthfile"])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'])
     arun(start(Object))
 
 
