@@ -108,5 +108,5 @@ if __name__ == "__main__":
     logger.info("Loading config from config.yaml")
     with open("config.yaml", "r") as ymlfile:
         cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'], cfg["bandwidthfile"])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'])
     run(start(Object, cfg['databaseURL']))
