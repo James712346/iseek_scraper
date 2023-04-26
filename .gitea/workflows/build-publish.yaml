@@ -14,15 +14,12 @@ jobs:
     - uses: actions/checkout@v3
     - name: setup buildx
       uses: https://github.com/docker/setup-buildx-action@v2
-    - name: login into docker hub
-      run: |
-        BASE64_AUTH=`echo -n "$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD" | base64`
-        mkdir -p ~/.docker
-        echo "{\"auths\": {\"$CI_REGISTRY\": {\"auth\": \"$BASE64_AUTH\"}}}" > ~/.docker/config.json                
-      env:
-          CI_REGISTRY: https://gitea.jamesprince.me/
-          CI_REGISTRY_USER: ${{ secrets.PACKAGEUSR }}
-          CI_REGISTRY_PASSWORD: ${{ secrets.PACKAGEPWD }}
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://gitea.jamesprince.me/
+        username: ${{ secrets.PACKAGEUSR }}
+        password: ${{ secrets.PACKAGEPWD }}
     - name: build image
       uses: https://github.com/docker/build-push-action@v4
       with:
