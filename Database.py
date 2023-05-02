@@ -5,6 +5,7 @@ from scrapper import Iseek
 import logging
 from time import sleep
 from sys import stdout
+from os import getenv
 logger = logging.getLogger("Iseek.database")
 
 ErroredGraphs = []
@@ -70,12 +71,15 @@ async def DatabaseParser(dataSet):
     #Return it
     return []
 
-async def start(IseekInstance:Iseek, DatabaseUrl:str):
-    await Tortoise.init(db_url = DatabaseUrl,modules={"models": ["models"]} )
-    try:
-        await Tortoise.generate_schemas(safe=True)
-    except exceptions.OperationalError:
-        logger.error("Error when creating the Schema (can ignore if using mssql, as it usally minor)", exc_info=True)
+async def start(IseekInstance:Iseek, DatabaseUrl:str, usingConfig=False):
+    await Tortoise.init(db_url = DatabaseUrl, modules={"models": ["models"]})
+    if getenv("no_init") != 'true':
+        try:
+            await Tortoise.generate_schemas(safe=True)
+        except exceptions.OperationalError:
+            logger.error("Error when creating the Schema (can ignore if using mssql, as it usally minor)", exc_info=True)
+    else:    
+        IseekInstance.graphs = await Graphs.all().values_list('ID', flat=True)
     async with IseekInstance:
         Models = await IseekInstance.getAllData(CustomParser=DatabaseParser,flatten=True, parseTitles=False)
         for graph in ErroredGraphs:
@@ -94,19 +98,42 @@ if __name__ == "__main__":
     Iseek.Logger.addHandler(handler)
     Iseek.Parse.Logger.addHandler(handler)
 
-    logger.propagate = False
+    logger.propagate = False 
     Iseek.Logger.propagate = False
     Iseek.Parse.Logger.propagate = False
 
 
-    logger.setLevel(logging.INFO)
-    Iseek.Logger.setLevel(logging.INFO)
-    Iseek.Parse.Logger.setLevel(logging.INFO)   
+   
     
     logger.info("Starting Database")
-    import yaml
-    logger.info("Loading config from config.yaml")
-    with open("config.yaml", "r") as ymlfile:
-        cfg = yaml.load(ymlfile, Loader=yaml.Loader)
-    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'], cfg['graphs'])
+    if getenv("iseek_usename"):
+        logger.info("Loading config from config.yaml")
+        import yaml
+        with open("config.yaml", "r") as ymlfile:
+            cfg = yaml.load(ymlfile, Loader=yaml.Loader)
+    else:
+        logger.info("Loading config from local/docker environment variables")
+        cfg = {
+            "Iseek":{
+                "username": getenv("iseek_username"),
+                "password": getenv("iseek_password"),
+                "realm" : getenv("iseek_realm")
+            },
+            "databaseURL": getenv("databaseURL"),
+            "log":{
+                "iseek": getenv("log_iseek"),
+                "parse": getenv("log_parse"),
+                "database": getenv("log_database")
+            }
+        }
+    if not cfg["log"]["iseek"]:
+        cfg["log"]["iseek"] = "INFO"
+    if not cfg["log"]["parse"]:
+        cfg["log"]["parse"] = "INFO"
+    if not cfg["log"]["database"]:
+        cfg["log"]["database"] = "INFO"
+    Iseek.Logger.setLevel(cfg["log"]["iseek"])
+    Iseek.Parse.Logger.setLevel(cfg["log"]["parse"])
+    logger.setLevel(cfg["log"]["database"])
+    Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'])
     run(start(Object, cfg['databaseURL']))
