@@ -30,7 +30,7 @@ jobs:
       run: |
         BASE64_AUTH=`echo -n "$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD" | base64`
         mkdir -p ~/.docker
-        echo "{\"auths\": {\"$CI_REGISTRY\": {\"auth\": \"$BASE64_AUTH\"}}}" > ~/.docker/config.json                
+        echo "{\"auths\": {\"$CI_REGISTRY\": {\"auth\": \"$BASE64_AUTH\"}}}" > ~/.docker/config.json
       env:
         CI_REGISTRY: https://gitea.jamesprince.me/
         CI_REGISTRY_USER: ${{ secrets.PACKAGEUSR }}
