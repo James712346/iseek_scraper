@@ -12,16 +12,17 @@ ErroredGraphs = []
 
 async def DatabaseParser(dataSet):
     # Check if graphID already in database
-    graph = await Graphs.get_or_none(ID=dataSet["graphid"])
-    timeThreshold = 0 
+    graph = await Graphs.get_or_none(ID=dataSet["graphid"]) # Get Graph Model
+    timeThreshold = 0 # Time Threshold for when to start adding data
+    # if not in database, create it
     if (not graph): 
         graph = await Graphs.create(
                                     ID=dataSet["graphid"],
                                     rawTitle=dataSet["rawTitle"],
                                     **Iseek.Parse.title(dataSet["rawTitle"])
-                                    )
+                                    ) # Create Graph Model
     else:
-        lastRow = await Transit.filter(graph_id = dataSet["graphid"]).order_by("-DateTime").first().values()
+        lastRow = await Transit.filter(graph_id = dataSet["graphid"]).order_by("-DateTime").first().values() 
         if lastRow: timeThreshold = lastRow['DateTime'].timestamp()
     # Create Transit Model
     modeledData = []
@@ -137,3 +138,5 @@ if __name__ == "__main__":
     logger.setLevel(cfg["log"]["database"])
     Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'])
     run(start(Object, cfg['databaseURL']))
+
+

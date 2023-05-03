@@ -11,6 +11,7 @@ jobs:
         arch: ['ubuntu-latest']
     runs-on: ${{ matrix.arch }}
     steps:
+    - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
     - uses: actions/checkout@v3
     - name: setup buildx
       uses: https://github.com/docker/setup-buildx-action@v2
@@ -20,11 +21,13 @@ jobs:
         mkdir -p ~/.docker
         echo "{\"auths\": {\"$CI_REGISTRY\": {\"auth\": \"$BASE64_AUTH\"}}}" > ~/.docker/config.json                
       env:
-          CI_REGISTRY: https://gitea.jamesprince.me/
-          CI_REGISTRY_USER: ${{ secrets.PACKAGEUSR }}
-          CI_REGISTRY_PASSWORD: ${{ secrets.PACKAGEPWD }}
+        CI_REGISTRY: https://gitea.jamesprince.me/
+        CI_REGISTRY_USER: ${{ secrets.PACKAGEUSR }}
+        CI_REGISTRY_PASSWORD: ${{ secrets.PACKAGEPWD }}
     - name: build image
       uses: https://github.com/docker/build-push-action@v4
       with:
         push: true
         tags: james/iseek_scraper:latest
+      env:
+        ACTIONS_RUNTIME_TOKEN: ''
