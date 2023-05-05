@@ -117,6 +117,14 @@ class Iseek:
             return (time, float(Raw_Row[1]), float(Raw_Row[2]))
         
         def title(title):
+            """Parses the title of the graph, and returns a dictionary with the following keys; POI_state, POI_server, channel, state, location, POI_code, NBN_CVC, CSA, VLink_Circuit_ID
+
+            Args:
+                title (str): Title of the graph extracted from the CSV data
+
+            Returns:
+                dict: Returns a dictionary with the following keys; POI_state, POI_server, channel, state, location, POI_code, NBN_CVC, CSA, VLink_Circuit_ID
+            """
             dataParsed = { }
             POIstates = {"ldr": "QLD", "gh": "NSW", "ls": "VIC", "md":"WA"}
             states = ["","","NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]

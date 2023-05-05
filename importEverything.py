@@ -3,14 +3,9 @@ from asyncio import run
 from tortoise import Tortoise, exceptions 
 from models import Graphs
 
-
-
 async def start(DatabaseUrl):
-
     await Tortoise.init(db_url = DatabaseUrl,modules={"models": ["models"]} )
-
     workbook = load_workbook(filename="C:\\Users\\JamesPrince\\vonex.biz\\2SG Wholesale - NBN Direct Migration\\VNNI CVC.xlsx")
-
     for nsheet in workbook.sheetnames[1:]:
         sheet = workbook[nsheet]
         RowsToUpdate = []
