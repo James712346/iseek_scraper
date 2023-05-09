@@ -1,4 +1,4 @@
-name: ci
+name: Build and Publish Docker Image
 
 on:
   push:
@@ -11,8 +11,6 @@ jobs:
         arch: ['ubuntu-latest']
     runs-on: ${{ matrix.arch }}
     steps:
-    - name: Is Running
-      run: echo "Running on GITHUB: $GITHUB_ACTIONS"
     - uses: actions/checkout@v3
     - name: Generate Docker metadata
       id: meta
