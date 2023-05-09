@@ -8,12 +8,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: setup buildx
-      uses: https://github.com/docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v2
     - name: Build Test Image
       uses: docker/build-push-action@v2
       with:
         context: .
-        file: {context}/dockerfile.test
+        file: ./dockerfile.test
         tags: ${{ github.repository }}:test
     - name: Lint with flake8
       run: |
