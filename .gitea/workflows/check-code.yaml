@@ -3,17 +3,20 @@ name: Run Python tests
 on: [push]
 
 jobs:
-  build:
+  run-tests:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v2
+    - name: Run uname -srm
+      run: uname -srm
     - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: '3.11'
         check-latest: true
       env:
         AGENT_TOOLSDIRECTORY: /opt/hostedtoolcache
+        RUNNER_TOOL_CACHE: /opt/hostedtoolcache
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
