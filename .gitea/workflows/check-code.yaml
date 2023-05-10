@@ -7,8 +7,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v2
-    - name: Run uname -srm
-      run: uname -srm
+    - name: Setup agent tools directory
+      run: |
+        sudo mkdir -p -m 777 /opt/hostedtoolcache
+        export AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
     - name: Set up Python 3.11
       uses: actions/setup-python@v4
       with:
