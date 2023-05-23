@@ -140,6 +140,6 @@ if __name__ == "__main__":
     while True:
         if (strftime("%M", localtime())[-1] in ["1", "6"]):
             run(start(Object, cfg['databaseURL']))
-        sleep(60) # Sleep for 60 seconds waiting next minute
+        sleep(30) # Sleep for 60 seconds waiting next minute
 
 
