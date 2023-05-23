@@ -3,7 +3,7 @@ from asyncio import run
 from models import Transit, Graphs
 from scrapper import Iseek
 import logging
-from time import sleep
+from time import sleep, localtime, strftime
 from sys import stdout
 from os import getenv
 logger = logging.getLogger("Iseek.database")
@@ -137,6 +137,9 @@ if __name__ == "__main__":
     Iseek.Parse.Logger.setLevel(cfg["log"]["parse"])
     logger.setLevel(cfg["log"]["database"])
     Object = Iseek(cfg['Iseek']['username'],cfg['Iseek']['password'],  cfg['Iseek']['realm'])
-    run(start(Object, cfg['databaseURL']))
+    while True:
+        if (strftime("%M", localtime())[-1] in ["1", "6"]):
+            run(start(Object, cfg['databaseURL']))
+        sleep(60) # Sleep for 60 seconds waiting next minute
 
 
