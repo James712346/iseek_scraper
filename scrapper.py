@@ -221,6 +221,7 @@ class Iseek:
             dict: Returns the Title, GraphID, Unit, and Data in a dictionary
         """
         var = f"?local_graph_id={str(graphID)[:4]}&rra_id=5&view_type=tree" # Sets up url variables
+        Iseek.Logger.info(f"Pulling data for Graphid: {dataSet['graphid']}")
         async with self.Session.post(Iseek.URL+Iseek.ACTION+var) as responce: # Sends a post to https://customer.ims.iseek.com.au/graph_xport.php?local_graph_id={graphID}&rra_id=5&view_type=tree, and recieving CSV data into variable 'responce'
             DATA_DUMP = await responce.text() #Get the raw text from the responce
             DATA_DUMP = DATA_DUMP.split("\n") #Convert each line to rows in a python list

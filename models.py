@@ -42,3 +42,8 @@ class Transit(Model):
     Bandwidth_RoC = fields.FloatField(description="bps^2", null=True)
 
 
+class ScrapeInfo(Model):
+    datetime = fields.DatetimeField(pk=True, auto_now_add=True)
+    noentries = fields.IntField()
+    noentryfailed = fields.IntField()
+    timetaken = fields.FloatField()

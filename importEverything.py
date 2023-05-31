@@ -1,6 +1,6 @@
 from openpyxl import load_workbook
 from asyncio import run
-from tortoise import Tortoise, exceptions 
+from tortoise import Tortoise 
 from models import Graphs
 
 async def start(DatabaseUrl):

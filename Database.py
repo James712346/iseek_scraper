@@ -1,14 +1,15 @@
 from tortoise import Tortoise, exceptions 
 from asyncio import run
-from models import Transit, Graphs
+from models import Transit, Graphs, ScrapeInfo
 from scrapper import Iseek
 import logging
-from time import sleep
+from time import sleep, time
 from sys import stdout
 from os import getenv
 logger = logging.getLogger("Iseek.database")
 
 ErroredGraphs = []
+UPLOADEDANYTHING = False
 
 async def DatabaseParser(dataSet):
     # Check if graphID already in database
@@ -64,6 +65,8 @@ async def DatabaseParser(dataSet):
                     format_row["Bandwidth_RoC"] = round(RoC, 4)
                 logger.debug(f"Adding {format_row} to database")
                 try:
+                    logger.info(f"Adding {graph} to database")
+                    UPLOADEDANYTHING = True
                     await Transit.create(**format_row)
                 except exceptions.OperationalError:
                     logger.error(f"Failed to add {format_row} to database")
@@ -73,6 +76,7 @@ async def DatabaseParser(dataSet):
     return []
 
 async def start(IseekInstance:Iseek, DatabaseUrl:str, usingConfig=False):
+    startingTime = time()
     await Tortoise.init(db_url = DatabaseUrl, modules={"models": ["models"]})
     if getenv("no_init") != 'true':
         try:
@@ -87,7 +91,12 @@ async def start(IseekInstance:Iseek, DatabaseUrl:str, usingConfig=False):
             data = await IseekInstance.getData(graph, None, parseTitles=False)
             if await DatabaseParser(data) == [graph]:
                 logger.critical(f"Database failed a second time to grab data from {graph}!")
-
+            else:
+                ErroredGraphs.remove(graph)
+    TimeTaken = time() - startingTime
+    logger.info(f"Time Taken: {TimeTaken}")
+    if UPLOADEDANYTHING:
+        await ScrapeInfo.create(noentries=len(IseekInstance.graphs), noentryfailed=len(ErroredGraphs), timetaken=TimeTaken)
     return None
 
 if __name__ == "__main__":
@@ -102,12 +111,10 @@ if __name__ == "__main__":
     logger.propagate = False 
     Iseek.Logger.propagate = False
     Iseek.Parse.Logger.propagate = False
-
-
-   
-    
+  
+    logger.setLevel("INFO")
     logger.info("Starting Database")
-    if getenv("iseek_usename"):
+    if not getenv("iseek_username"):
         logger.info("Loading config from config.yaml")
         import yaml
         with open("config.yaml", "r") as ymlfile:
