@@ -65,7 +65,7 @@ async def DatabaseParser(dataSet):
                     format_row["Bandwidth_RoC"] = round(RoC, 4)
                 logger.debug(f"Adding {format_row} to database")
                 try:
-                    logger.info(f"Adding {graph} to database")
+                    logger.info(f"Adding {dataSet['graphid']} to database")
                     UPLOADEDANYTHING = True
                     await Transit.create(**format_row)
                 except exceptions.OperationalError:
