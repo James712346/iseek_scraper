@@ -12,6 +12,7 @@ ErroredGraphs = []
 UPLOADEDANYTHING = False
 
 async def DatabaseParser(dataSet):
+    global UPLOADEDANYTHING
     # Check if graphID already in database
     graph = await Graphs.get_or_none(ID=dataSet["graphid"]) # Get Graph Model
     timeThreshold = 0 # Time Threshold for when to start adding data
